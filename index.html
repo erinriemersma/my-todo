@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>To-Do</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --border: #E8E3DC;
+    --text: #1A1714;
+    --muted: #8A8278;
+    --radius: 14px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.07);
+    --green: #1E8449;
+    --red: #C0392B;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 28px 16px 100px;
+  }
+
+  .wrap { max-width: 660px; margin: 0 auto; }
+
+  header { margin-bottom: 24px; }
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2rem, 6vw, 2.8rem);
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .header-sub {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .subtitle { color: var(--muted); font-size: 0.84rem; }
+
+  /* Sync badge */
+  .sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    transition: all 0.3s;
+    white-space: nowrap;
+  }
+  .sync-badge.synced  { color: var(--green); border-color: #c3e6cb; background: #f0faf4; }
+  .sync-badge.saving  { color: #b7860b;      border-color: #f5e4a0; background: #fffdf0; }
+  .sync-badge.error   { color: var(--red);   border-color: #f5c6cb; background: #fff5f5; }
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .sync-badge.saving .sync-dot {
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Controls card */
+  .controls-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .add-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .add-input {
+    flex: 1; border: none; outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem; color: var(--text);
+    background: transparent; min-width: 0;
+  }
+  .add-input::placeholder { color: #C5BFB7; }
+
+  .cat-select-wrap { position: relative; }
+  .cat-select-wrap select {
+    appearance: none; -webkit-appearance: none;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 28px 5px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem; font-weight: 500;
+    color: var(--text); background: var(--bg);
+    cursor: pointer; outline: none;
+    min-width: 110px; max-width: 160px;
+  }
+  .cat-select-wrap::after {
+    content: '▾';
+    position: absolute; right: 9px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.7rem; color: var(--muted);
+    pointer-events: none;
+  }
+
+  .add-btn {
+    width: 32px; height: 32px;
+    border-radius: 50%; border: none;
+    background: var(--text); color: #fff;
+    font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .add-btn:hover { background: #333; transform: scale(1.07); }
+
+  .filter-row {
+    display: flex; align-items: center; gap: 6px; padding: 10px 16px;
+  }
+  .filter-btn {
+    padding: 5px 14px; border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .filter-btn:hover:not(.active) { border-color: var(--text); color: var(--text); }
+  .row-spacer { flex: 1; }
+  .manage-btn {
+    padding: 5px 12px; border-radius: 999px;
+    border: 1.5px dashed var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem; cursor: pointer; transition: all 0.15s;
+  }
+  .manage-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* Category panel */
+  .cat-panel {
+    display: none;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .cat-panel.open { display: block; }
+  .cat-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    background: #FAFAF8;
+  }
+  .cat-panel-header span { font-family: 'DM Serif Display', serif; font-size: 1rem; }
+  .add-cat-btn {
+    padding: 4px 12px; border-radius: 999px;
+    border: 1.5px dashed var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.76rem; cursor: pointer; transition: all 0.15s;
+  }
+  .add-cat-btn:hover { border-color: var(--text); color: var(--text); }
+
+  .cat-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-row:last-child { border-bottom: none; }
+
+  .cat-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; cursor: pointer; transition: transform 0.15s;
+  }
+  .cat-dot:hover { transform: scale(1.4); }
+
+  .cat-name-input {
+    flex: 1; border: none; outline: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem; color: var(--text);
+    min-width: 0;
+    border-bottom: 1px solid transparent; padding-bottom: 1px;
+  }
+  .cat-name-input:focus { border-bottom-color: var(--muted); }
+
+  .cat-count-badge {
+    font-size: 0.72rem; color: var(--muted);
+    background: var(--bg); border-radius: 999px;
+    padding: 2px 7px; flex-shrink: 0;
+  }
+
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 7px; border: none;
+    background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 0.9rem;
+    transition: background 0.1s, color 0.1s;
+    -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+  }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+  .icon-btn:disabled { opacity: 0.25; cursor: default; }
+  .icon-btn:disabled:hover { background: transparent; color: var(--muted); }
+  .icon-btn.danger:hover { background: #fee2e2; color: #c0392b; }
+
+  /* Task list */
+  .task-list-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .group-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px 8px;
+    background: #FAFAF8;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-header:not(:first-child) { border-top: 2px solid var(--border); }
+  .group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .group-label { font-family: 'DM Serif Display', serif; font-size: 0.9rem; flex: 1; }
+  .group-count { font-size: 0.72rem; color: var(--muted); }
+
+  .task-row {
+    display: flex; align-items: flex-start; gap: 11px;
+    padding: 10px 16px;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+  }
+  .task-row:last-child { border-bottom: none; }
+  .task-row:hover { background: #FAFAF8; }
+
+  .task-check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    flex-shrink: 0; margin-top: 1px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; background: #fff;
+  }
+  .task-check.checked { background: var(--cc); border-color: var(--cc); }
+  .task-check.checked::after {
+    content: '';
+    width: 5px; height: 9px;
+    border: 2px solid white;
+    border-top: none; border-left: none;
+    transform: rotate(40deg) translateY(-1px);
+    display: block;
+  }
+  .task-text {
+    flex: 1; font-size: 0.9rem; line-height: 1.45;
+    word-break: break-word; outline: none; cursor: text;
+    border-bottom: 1px solid transparent; padding-bottom: 1px;
+  }
+  .task-text:focus { border-bottom-color: var(--muted); }
+  .task-text.done { text-decoration: line-through; color: var(--muted); }
+  .task-del { opacity: 0; margin-top: 1px; transition: opacity 0.15s; flex-shrink: 0; }
+  .task-row:hover .task-del { opacity: 1; }
+
+  .empty-group {
+    padding: 12px 16px; color: var(--muted);
+    font-size: 0.82rem; font-style: italic;
+    border-bottom: 1px solid var(--border);
+  }
+  .empty-group:last-child { border-bottom: none; }
+  .empty-all {
+    padding: 40px 16px; text-align: center;
+    color: var(--muted); font-size: 0.88rem; font-style: italic;
+  }
+
+  /* Loading overlay */
+  .loading-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px; z-index: 500;
+    transition: opacity 0.3s;
+  }
+  .loading-screen.hidden { opacity: 0; pointer-events: none; }
+  .loading-title { font-family: 'DM Serif Display', serif; font-size: 1.4rem; }
+  .loading-sub { color: var(--muted); font-size: 0.84rem; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--text);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Chat FAB */
+  .chat-fab {
+    position: fixed; bottom: 24px; right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--text); color: #fff; border: none;
+    font-size: 1.35rem; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    transition: transform 0.2s, background 0.15s;
+  }
+  .chat-fab:hover { background: #333; transform: scale(1.08); }
+
+  /* Chat drawer */
+  .chat-drawer {
+    position: fixed; bottom: 0; right: 0;
+    width: 100%; max-width: 420px; height: 500px;
+    background: var(--surface);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+    z-index: 190;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    overflow: hidden;
+  }
+  .chat-drawer.open { transform: translateY(0); }
+
+  .chat-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    background: #FAFAF8; flex-shrink: 0;
+  }
+  .chat-header-title { font-family: 'DM Serif Display', serif; font-size: 1rem; }
+  .chat-header-sub { font-size: 0.71rem; color: var(--muted); margin-top: 1px; }
+  .chat-close {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: var(--bg); color: var(--muted);
+    cursor: pointer; font-size: 0.95rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s; flex-shrink: 0;
+  }
+  .chat-close:hover { background: var(--border); color: var(--text); }
+
+  .chat-messages {
+    flex: 1; overflow-y: auto;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    scroll-behavior: smooth;
+  }
+  .chat-bubble {
+    max-width: 88%; padding: 9px 13px; border-radius: 14px;
+    font-size: 0.86rem; line-height: 1.45; word-break: break-word;
+  }
+  .chat-bubble.user {
+    align-self: flex-end; background: var(--text); color: #fff;
+    border-radius: 14px 14px 4px 14px;
+  }
+  .chat-bubble.assistant {
+    align-self: flex-start; background: var(--bg); color: var(--text);
+    border-radius: 14px 14px 14px 4px; border: 1px solid var(--border);
+  }
+  .chat-bubble.thinking {
+    align-self: flex-start; background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px 14px 14px 4px;
+    padding: 9px 13px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot-anim { display: flex; gap: 4px; }
+  .dot-anim span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted); animation: bdot 1.2s infinite;
+  }
+  .dot-anim span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-anim span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bdot {
+    0%,60%,100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-5px); opacity: 1; }
+  }
+
+  .chat-input-row {
+    display: flex; align-items: flex-end; gap: 8px;
+    padding: 10px 14px 16px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1; border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem; color: var(--text);
+    outline: none; resize: none; max-height: 90px;
+    line-height: 1.4; background: var(--bg); overflow-y: auto;
+  }
+  .chat-input:focus { border-color: var(--text); }
+  .chat-send {
+    width: 34px; height: 34px; border-radius: 50%; border: none;
+    background: var(--text); color: #fff; font-size: 1.05rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s, transform 0.1s;
+  }
+  .chat-send:hover { background: #333; transform: scale(1.07); }
+  .chat-send:disabled { opacity: 0.35; cursor: default; transform: none; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3); z-index: 300;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 16px;
+    padding: 22px 20px 20px; width: 100%; max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal h2 { font-family: 'DM Serif Display', serif; font-size: 1.2rem; margin-bottom: 14px; }
+  .modal input[type=text] {
+    width: 100%; padding: 9px 13px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.92rem;
+    outline: none; margin-bottom: 12px; color: var(--text);
+  }
+  .modal input[type=text]:focus { border-color: var(--text); }
+  .color-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 3px solid transparent; transition: transform 0.12s;
+  }
+  .swatch.sel { border-color: var(--text); transform: scale(1.18); }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn {
+    padding: 8px 18px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 0.86rem; font-weight: 500;
+    cursor: pointer; transition: all 0.13s;
+  }
+  .btn-ghost { background: var(--bg); color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); }
+  .btn-primary { background: var(--text); color: #fff; }
+  .btn-primary:hover { background: #333; }
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div class="loading-screen" id="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-title">To‑Do</div>
+  <div class="loading-sub">Syncing with Google Drive…</div>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>To‑Do</h1>
+    <div class="header-sub">
+      <p class="subtitle" id="stats-line">Loading…</p>
+      <span class="sync-badge synced" id="sync-badge">
+        <span class="sync-dot"></span>
+        <span id="sync-label">Synced</span>
+      </span>
+    </div>
+  </header>
+
+  <div class="controls-card">
+    <div class="add-section">
+      <input class="add-input" id="add-input" placeholder="New task…"
+        onkeydown="if(event.key==='Enter') addTask()" />
+      <div class="cat-select-wrap">
+        <select id="cat-select"></select>
+      </div>
+      <button class="add-btn" onclick="addTask()">+</button>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" data-f="all"    onclick="setFilter(this)">All</button>
+      <button class="filter-btn"        data-f="active" onclick="setFilter(this)">Active</button>
+      <button class="filter-btn"        data-f="done"   onclick="setFilter(this)">Done</button>
+      <span class="row-spacer"></span>
+      <button class="manage-btn" onclick="togglePanel()">Manage categories</button>
+    </div>
+  </div>
+
+  <div class="cat-panel" id="cat-panel">
+    <div class="cat-panel-header">
+      <span>Categories</span>
+      <button class="add-cat-btn" onclick="openModal('add-cat')">+ Add category</button>
+    </div>
+    <div id="cat-rows"></div>
+  </div>
+
+  <div class="task-list-card" id="task-list"></div>
+</div>
+
+<!-- Chat FAB -->
+<button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Chat with your list">✦</button>
+
+<!-- Chat drawer -->
+<div class="chat-drawer" id="chat-drawer">
+  <div class="chat-header">
+    <div style="flex:1">
+      <div class="chat-header-title">Ask your list</div>
+      <div class="chat-header-sub">Add · edit · complete · delete via chat</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-bubble assistant">Hi! Tell me what to do — add tasks, mark things done, edit text, delete items, or just ask what's on the list.</div>
+  </div>
+  <div class="chat-input-row">
+    <textarea class="chat-input" id="chat-input" rows="1"
+      placeholder="e.g. Add 'call dentist' to Health…"
+      oninput="autoResize(this)"
+      onkeydown="chatKeydown(event)"></textarea>
+    <button class="chat-send" id="chat-send" onclick="sendChat()">↑</button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="modal-title">New Category</h2>
+    <input type="text" id="modal-name" placeholder="Category name" />
+    <div class="color-grid" id="color-grid"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────
+const DRIVE_FILE_ID = '1t1-jCbBSLr7EAcEqnaPCDpH_ymOLcwlT';
+const DRIVE_MCP_URL = 'https://drivemcp.googleapis.com/mcp/v1';
+const LOCAL_KEY = 'todo-grouped-v1-cache';
+
+const PALETTE = [
+  '#C0392B','#E74C3C','#D35400','#D68910',
+  '#1E8449','#17A589','#2471A3','#1A5276',
+  '#7D3C98','#6C3483','#626567','#2C3E50'
+];
+
+const DEFAULTS = [
+  { id:'high',      name:'High Priority',      color:'#C0392B', tasks:[] },
+  { id:'house',     name:'House',              color:'#2471A3', tasks:[] },
+  { id:'health',    name:'Health',             color:'#1E8449', tasks:[] },
+  { id:'financial', name:'Financial',          color:'#7D3C98', tasks:[] },
+  { id:'trips',     name:'Trips & Activities', color:'#D68910', tasks:[] },
+];
+
+let state = { categories: [], filter: 'all' };
+let modalMode = null, modalCatId = null, pickedColor = PALETTE[0];
+let saveTimer = null;
+let chatOpen = false, chatHistory = [], chatBusy = false;
+
+// ── Sync badge ────────────────────────────────────────
+function setSyncBadge(status, label) {
+  const badge = document.getElementById('sync-badge');
+  const lbl   = document.getElementById('sync-label');
+  badge.className = `sync-badge ${status}`;
+  lbl.textContent = label;
+}
+
+// ── Drive via Anthropic API ───────────────────────────
+async function driveApiCall(userMsg) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      mcp_servers: [{ type: 'url', url: DRIVE_MCP_URL, name: 'gdrive' }],
+      system: 'You are a file-reading assistant. When asked to read a Drive file, call the appropriate MCP tool and return ONLY the raw file content — no prose, no markdown fences, no explanation.',
+      messages: [{ role: 'user', content: userMsg }]
+    })
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  return resp.json();
+}
+
+async function loadFromDrive() {
+  try {
+    setSyncBadge('saving', 'Loading…');
+    const data = await driveApiCall(
+      `Use the Google Drive MCP tool to download the file with ID "${DRIVE_FILE_ID}". ` +
+      `Respond with ONLY a valid JSON object — no prose, no markdown, no backticks, no explanation. ` +
+      `The JSON must start with { and end with }. Nothing before or after it.`
+    );
+
+    // Walk all blocks and try to extract valid JSON with categories
+    const blocks = data.content || [];
+    const candidates = [];
+
+    for (const b of blocks) {
+      // Collect raw text from text blocks and mcp_tool_result blocks
+      let texts = [];
+      if (b.type === 'text' && b.text) texts.push(b.text);
+      if (b.type === 'mcp_tool_result') {
+        (b.content || []).forEach(c => { if (c.text) texts.push(c.text); });
+      }
+      for (const t of texts) {
+        // Try direct parse first
+        try {
+          const p = JSON.parse(t.trim());
+          if (p && p.categories) { candidates.push(p); continue; }
+        } catch(e) {}
+        // Try extracting the outermost JSON object robustly
+        let depth = 0, start = -1;
+        for (let i = 0; i < t.length; i++) {
+          if (t[i] === '{') { if (depth === 0) start = i; depth++; }
+          else if (t[i] === '}') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+              try {
+                const p = JSON.parse(t.slice(start, i + 1));
+                if (p && p.categories) candidates.push(p);
+              } catch(e) {}
+              start = -1;
+            }
+          }
+        }
+      }
+    }
+
+    if (candidates.length > 0) {
+      state = candidates[0];
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+      setSyncBadge('synced', 'Synced');
+      return true;
+    }
+    console.warn('Drive load: no valid JSON with categories found in response', blocks);
+  } catch(e) {
+    console.warn('Drive load failed:', e);
+  }
+  return false;
+}
+
+async function saveToDrive() {
+  setSyncBadge('saving', 'Saving…');
+  try {
+    const json = JSON.stringify(state);
+    // Use a system prompt to force tool use, pass JSON safely in a separate user turn
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        mcp_servers: [{ type: 'url', url: DRIVE_MCP_URL, name: 'gdrive' }],
+        system: 'You are a file-writing assistant. When given a file ID and JSON content, immediately call the Google Drive MCP tool to overwrite that file with the new content. Do not explain, just do it.',
+        messages: [{
+          role: 'user',
+          content: `Overwrite Google Drive file ID "${DRIVE_FILE_ID}" with this exact content (application/json): ${json}`
+        }]
+      })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    setSyncBadge('synced', 'Synced');
+  } catch(e) {
+    console.warn('Drive save failed:', e);
+    setSyncBadge('error', 'Sync failed');
+  }
+}
+
+// Debounce saves — wait 1.5s after last change
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  setSyncBadge('saving', 'Saving…');
+  saveTimer = setTimeout(() => saveToDrive(), 1500);
+}
+
+// ── Boot ──────────────────────────────────────────────
+async function boot() {
+  // Show loading screen
+  document.getElementById('loading-screen').classList.remove('hidden');
+
+  // Try local cache first so UI appears fast
+  const cached = localStorage.getItem(LOCAL_KEY);
+  if (cached) {
+    try { state = JSON.parse(cached); render(); } catch(e) {}
+  }
+
+  // Load from Drive (authoritative)
+  const ok = await loadFromDrive();
+  if (!ok && !cached) {
+    // Fallback to defaults
+    state = { categories: JSON.parse(JSON.stringify(DEFAULTS)), filter: 'all' };
+  }
+
+  render();
+  document.getElementById('loading-screen').classList.add('hidden');
+}
+
+// ── Helpers ──────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2,9); }
+function getCat(id) { return state.categories.find(c => c.id === id); }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Filter ───────────────────────────────────────────
+function setFilter(btn) {
+  state.filter = btn.dataset.f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  scheduleSave(); renderList();
+}
+
+function togglePanel() {
+  document.getElementById('cat-panel').classList.toggle('open');
+}
+
+// ── Render ───────────────────────────────────────────
+function render() {
+  renderCatSelect();
+  renderCatPanel();
+  renderList();
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.f === state.filter);
+  });
+}
+
+function renderCatSelect() {
+  const sel = document.getElementById('cat-select');
+  const prev = sel.value;
+  sel.innerHTML = state.categories.map(c =>
+    `<option value="${c.id}">${c.name}</option>`
+  ).join('');
+  if (state.categories.find(c => c.id === prev)) sel.value = prev;
+}
+
+function renderCatPanel() {
+  document.getElementById('cat-rows').innerHTML = state.categories.map((cat, idx) => {
+    const done = cat.tasks.filter(t => t.done).length;
+    return `
+    <div class="cat-row">
+      <div class="cat-dot" style="background:${cat.color}" title="Edit color"
+           onclick="openModal('edit-cat','${cat.id}')"></div>
+      <input class="cat-name-input" value="${esc(cat.name)}"
+        onchange="renameCat('${cat.id}',this.value)" />
+      <span class="cat-count-badge">${done}/${cat.tasks.length}</span>
+      <button class="icon-btn" onclick="moveCat('${cat.id}',-1)"
+        ${idx===0?'disabled':''} title="Move up">↑</button>
+      <button class="icon-btn" onclick="moveCat('${cat.id}',1)"
+        ${idx===state.categories.length-1?'disabled':''} title="Move down">↓</button>
+      <button class="icon-btn danger" onclick="deleteCat('${cat.id}')" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function renderList() {
+  const el = document.getElementById('task-list');
+  const f = state.filter;
+  let html = '', totalActive = 0, totalDone = 0, anyVisible = false;
+
+  state.categories.forEach(cat => {
+    const visible = cat.tasks.filter(t =>
+      f === 'all' ? true : f === 'active' ? !t.done : t.done
+    );
+    totalActive += cat.tasks.filter(t => !t.done).length;
+    totalDone   += cat.tasks.filter(t =>  t.done).length;
+    if (f !== 'all' && visible.length === 0) return;
+    anyVisible = true;
+    const done = cat.tasks.filter(t => t.done).length;
+    html += `<div class="group-header">
+      <div class="group-dot" style="background:${cat.color}"></div>
+      <span class="group-label">${esc(cat.name)}</span>
+      <span class="group-count">${done}/${cat.tasks.length}</span>
+    </div>`;
+    if (visible.length === 0) {
+      html += `<div class="empty-group">No tasks yet</div>`;
+    } else {
+      visible.forEach(t => {
+        html += `<div class="task-row">
+          <div class="task-check ${t.done?'checked':''}" style="--cc:${cat.color}"
+               onclick="toggleTask('${cat.id}','${t.id}')"></div>
+          <div class="task-text ${t.done?'done':''}"
+               contenteditable="true"
+               onblur="editTask('${cat.id}','${t.id}',this.textContent)"
+               >${esc(t.text)}</div>
+          <button class="icon-btn danger task-del"
+                  onclick="deleteTask('${cat.id}','${t.id}')" title="Delete">✕</button>
+        </div>`;
+      });
+    }
+  });
+
+  el.innerHTML = anyVisible ? html : `<div class="empty-all">Nothing here yet — add your first task above.</div>`;
+  document.getElementById('stats-line').textContent =
+    `${totalActive} active · ${totalDone} done`;
+}
+
+// ── Task actions ─────────────────────────────────────
+function addTask() {
+  const input = document.getElementById('add-input');
+  const text  = input.value.trim();
+  const catId = document.getElementById('cat-select').value;
+  if (!text || !catId) return;
+  const cat = getCat(catId);
+  if (!cat) return;
+  cat.tasks.push({ id: uid(), text, done: false });
+  input.value = ''; input.focus();
+  scheduleSave(); render();
+}
+
+function toggleTask(catId, taskId) {
+  const t = getCat(catId)?.tasks.find(t => t.id === taskId);
+  if (t) t.done = !t.done;
+  scheduleSave(); renderList();
+}
+
+function editTask(catId, taskId, newText) {
+  const t = getCat(catId)?.tasks.find(t => t.id === taskId);
+  const trimmed = newText.trim();
+  if (t && trimmed) { t.text = trimmed; scheduleSave(); }
+}
+
+function deleteTask(catId, taskId) {
+  const cat = getCat(catId);
+  if (cat) cat.tasks = cat.tasks.filter(t => t.id !== taskId);
+  scheduleSave(); render();
+}
+
+// ── Category actions ──────────────────────────────────
+function renameCat(catId, name) {
+  const cat = getCat(catId);
+  if (cat && name.trim()) {
+    cat.name = name.trim();
+    scheduleSave(); renderCatSelect(); renderList();
+  }
+}
+
+function moveCat(catId, dir) {
+  const cats = state.categories;
+  const idx = cats.findIndex(c => c.id === catId);
+  const to  = idx + dir;
+  if (to < 0 || to >= cats.length) return;
+  [cats[idx], cats[to]] = [cats[to], cats[idx]];
+  scheduleSave(); render();
+}
+
+function deleteCat(catId) {
+  const cat = getCat(catId);
+  if (!confirm(`Delete "${cat.name}" and all its tasks?`)) return;
+  state.categories = state.categories.filter(c => c.id !== catId);
+  scheduleSave(); render();
+}
+
+// ── Modal ─────────────────────────────────────────────
+function buildSwatches(selected) {
+  document.getElementById('color-grid').innerHTML = PALETTE.map(c =>
+    `<div class="swatch${c===selected?' sel':''}" style="background:${c}"
+          onclick="pickColor('${c}',this)"></div>`
+  ).join('');
+}
+function pickColor(c, el) {
+  pickedColor = c;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function openModal(mode, catId) {
+  modalMode = mode; modalCatId = catId || null;
+  if (mode === 'add-cat') {
+    document.getElementById('modal-title').textContent = 'New Category';
+    document.getElementById('modal-name').value = '';
+    pickedColor = PALETTE[0];
+  } else {
+    const cat = getCat(catId);
+    document.getElementById('modal-title').textContent = 'Edit Category';
+    document.getElementById('modal-name').value = cat.name;
+    pickedColor = cat.color;
+  }
+  buildSwatches(pickedColor);
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('modal-name').focus(), 40);
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function overlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+function saveModal() {
+  const name = document.getElementById('modal-name').value.trim();
+  if (!name) { document.getElementById('modal-name').focus(); return; }
+  if (modalMode === 'add-cat') {
+    state.categories.push({ id: uid(), name, color: pickedColor, tasks: [] });
+  } else {
+    const cat = getCat(modalCatId);
+    if (cat) { cat.name = name; cat.color = pickedColor; }
+  }
+  closeModal(); scheduleSave(); render();
+}
+document.getElementById('modal-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveModal();
+  if (e.key === 'Escape') closeModal();
+});
+
+// ── Chat ─────────────────────────────────────────────
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-drawer').classList.toggle('open', chatOpen);
+  if (chatOpen) setTimeout(() => document.getElementById('chat-input').focus(), 300);
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 90) + 'px';
+}
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+function addBubble(role, text) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+function addThinking() {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-bubble thinking';
+  div.innerHTML = '<div class="dot-anim"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function getListSnapshot() {
+  return state.categories.map(cat => ({
+    id: cat.id, name: cat.name,
+    tasks: cat.tasks.map(t => ({ id: t.id, text: t.text, done: t.done }))
+  }));
+}
+
+function applyOps(ops) {
+  let changed = false;
+  for (const op of ops) {
+    if (op.type === 'add_task') {
+      const cat = state.categories.find(c =>
+        c.id === op.categoryId ||
+        c.name.toLowerCase() === (op.categoryName||'').toLowerCase()
+      );
+      if (cat) { cat.tasks.push({ id: uid(), text: op.text, done: false }); changed = true; }
+    } else if (op.type === 'complete_task') {
+      for (const cat of state.categories) {
+        const t = cat.tasks.find(t => t.id === op.taskId);
+        if (t) { t.done = true; changed = true; break; }
+      }
+    } else if (op.type === 'uncomplete_task') {
+      for (const cat of state.categories) {
+        const t = cat.tasks.find(t => t.id === op.taskId);
+        if (t) { t.done = false; changed = true; break; }
+      }
+    } else if (op.type === 'delete_task') {
+      for (const cat of state.categories) {
+        const before = cat.tasks.length;
+        cat.tasks = cat.tasks.filter(t => t.id !== op.taskId);
+        if (cat.tasks.length !== before) { changed = true; break; }
+      }
+    } else if (op.type === 'edit_task') {
+      for (const cat of state.categories) {
+        const t = cat.tasks.find(t => t.id === op.taskId);
+        if (t) { t.text = op.newText; changed = true; break; }
+      }
+    }
+  }
+  if (changed) { scheduleSave(); render(); }
+}
+
+async function sendChat() {
+  if (chatBusy) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = ''; input.style.height = 'auto';
+  addBubble('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  chatBusy = true;
+  document.getElementById('chat-send').disabled = true;
+  const thinking = addThinking();
+
+  const systemPrompt = `You are a to-do list assistant. You can read and modify the user's task list.
+
+Current list snapshot (JSON):
+${JSON.stringify(getListSnapshot(), null, 2)}
+
+Your job:
+1. Understand what the user wants (add, edit, complete, uncomplete, delete, or read/summarize).
+2. Reply conversationally in 1–2 short sentences.
+3. If modifications are needed, also output a JSON ops array after the exact separator "|||OPS|||".
+
+Ops format (array of objects):
+- { "type": "add_task", "categoryId": "<id>", "categoryName": "<name>", "text": "<text>" }
+- { "type": "complete_task", "taskId": "<id>" }
+- { "type": "uncomplete_task", "taskId": "<id>" }
+- { "type": "delete_task", "taskId": "<id>" }
+- { "type": "edit_task", "taskId": "<id>", "newText": "<text>" }
+
+Use IDs from the snapshot. Match categories case-insensitively.
+If no modifications needed, do NOT include "|||OPS|||".
+Keep your reply SHORT.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: chatHistory
+      })
+    });
+    const data = await resp.json();
+    const raw = data.content?.find(b => b.type === 'text')?.text || 'Sorry, something went wrong.';
+    const parts = raw.split('|||OPS|||');
+    const reply = parts[0].trim();
+    const opsRaw = parts[1]?.trim();
+
+    thinking.remove();
+    addBubble('assistant', reply);
+    chatHistory.push({ role: 'assistant', content: raw });
+
+    if (opsRaw) {
+      try { applyOps(JSON.parse(opsRaw)); } catch(e) { console.warn('ops parse error', e); }
+    }
+  } catch(e) {
+    thinking.remove();
+    addBubble('assistant', 'Something went wrong — please try again.');
+  }
+
+  chatBusy = false;
+  document.getElementById('chat-send').disabled = false;
+  document.getElementById('chat-input').focus();
+}
+
+// ── Start ─────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
