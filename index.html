@@ -320,15 +320,16 @@ async function driveReq(url, options = {}) {
 }
 
 async function findOrCreateFile() {
-  // Search in appDataFolder and drive for our file
+  // Search for most recently modified copy of our file
   const search = await driveReq(
-    `https://www.googleapis.com/drive/v3/files?q=name%3D'${FILE_NAME}'%20and%20trashed%3Dfalse&spaces=drive&fields=files(id,name)`
+    `https://www.googleapis.com/drive/v3/files?q=name%3D'${FILE_NAME}'%20and%20trashed%3Dfalse&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime%20desc`
   );
   const data = await search.json();
   if (data.files && data.files.length > 0) {
+    // Always use the most recently modified file
     return data.files[0].id;
   }
-  // Create it
+  // Create it fresh
   const meta = { name: FILE_NAME, mimeType: MIME };
   const create = await driveReq('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
@@ -336,7 +337,6 @@ async function findOrCreateFile() {
     body: JSON.stringify(meta)
   });
   const created = await create.json();
-  // Upload default content
   await uploadContent(created.id, JSON.stringify({ categories: JSON.parse(JSON.stringify(DEFAULTS)), filter: 'all' }));
   return created.id;
 }
