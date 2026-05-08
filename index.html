@@ -252,8 +252,9 @@ function signIn() {
   const client = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
+    prompt: 'consent',
     callback: async (resp) => {
-      if (resp.error) { console.error(resp); return; }
+      if (resp.error) { console.error('Auth error:', resp); return; }
       accessToken = resp.access_token;
       localStorage.setItem(TOKEN_KEY, accessToken);
       showLoading('Syncing with Google Drive…');
@@ -261,7 +262,7 @@ function signIn() {
       await boot();
     }
   });
-  client.requestAccessToken();
+  client.requestAccessToken({ prompt: 'consent' });
 }
 
 function showLoading(msg) {
@@ -380,15 +381,9 @@ async function boot() {
 
 // ── Init ──────────────────────────────────────────────
 window.addEventListener('load', () => {
-  // Try to reuse saved token
-  const saved = localStorage.getItem(TOKEN_KEY);
-  if (saved) {
-    accessToken = saved;
-    hideSignIn();
-    showLoading('Syncing with Google Drive…');
-    boot();
-  }
-  // else: sign-in screen stays visible
+  // Always show sign-in — don't reuse cached tokens
+  // (cached tokens may not have Drive scope)
+  localStorage.removeItem(TOKEN_KEY);
 });
 
 // ── Helpers ──────────────────────────────────────────
