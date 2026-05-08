@@ -221,7 +221,7 @@
 </div>
 
 <!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://accounts.google.com/gsi/client"></script>
 
 <script>
 // ── Config ────────────────────────────────────────────
@@ -249,20 +249,44 @@ let modalMode   = null, modalCatId = null, pickedColor = PALETTE[0];
 
 // ── Auth ──────────────────────────────────────────────
 function signIn() {
-  const client = google.accounts.oauth2.initTokenClient({
+  // Use direct OAuth2 popup — most reliable way to get Drive scope
+  const params = new URLSearchParams({
     client_id: CLIENT_ID,
+    redirect_uri: window.location.origin + window.location.pathname,
+    response_type: 'token',
     scope: SCOPES,
-    prompt: 'consent',
-    callback: async (resp) => {
-      if (resp.error) { console.error('Auth error:', resp); return; }
-      accessToken = resp.access_token;
-      localStorage.setItem(TOKEN_KEY, accessToken);
-      showLoading('Syncing with Google Drive…');
-      hideSignIn();
-      await boot();
-    }
+    prompt: 'consent select_account',
+    include_granted_scopes: 'true'
   });
-  client.requestAccessToken({ prompt: 'consent' });
+  const w = window.open(
+    'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString(),
+    'googleauth',
+    'width=500,height=600,left=200,top=100'
+  );
+  // Poll for the popup to redirect back with token
+  const poll = setInterval(() => {
+    try {
+      const url = w.location.href;
+      if (url.includes(window.location.origin)) {
+        clearInterval(poll);
+        w.close();
+        const hash = new URLSearchParams(w.location.hash.slice(1));
+        const token = hash.get('access_token');
+        if (token) {
+          accessToken = token;
+          localStorage.setItem(TOKEN_KEY, token);
+          showLoading('Syncing with Google Drive…');
+          hideSignIn();
+          boot();
+        } else {
+          alert('Sign in failed — please try again.');
+        }
+      }
+    } catch(e) {
+      // Cross-origin — popup still on Google's domain, keep polling
+    }
+    if (w.closed) clearInterval(poll);
+  }, 200);
 }
 
 function showLoading(msg) {
